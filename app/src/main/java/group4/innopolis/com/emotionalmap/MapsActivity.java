@@ -2,7 +2,9 @@ package group4.innopolis.com.emotionalmap;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
+import android.app.LoaderManager;
 import android.content.Context;
+import android.database.Cursor;
 import android.location.Location;
 import android.location.LocationManager;
 import android.support.v4.app.FragmentActivity;
@@ -16,12 +18,13 @@ import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+import group4.innopolis.com.emotionalmap.Database.EmotionMapRecord;
 
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMapLoadedCallback {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMapLoadedCallback{
 
     private GoogleMap mMap;
     private LatLng myLocation;
@@ -62,12 +65,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     public void displayMapRecords() { //todo: add button to execute this method
-        Set<MapRecord> records = getMapData();
+        Set<EmotionMapRecord> records = getMapData();
 
         if (records == null)
             return;
 
-        for (MapRecord record : records) {
+        for (EmotionMapRecord record : records) {
             LatLng latLng = new LatLng(record.Lat, record.Lng);
             mMap.addMarker(new MarkerOptions()
                     .position(latLng)
@@ -98,7 +101,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return recordType;
     }
 
-    public Set<MapRecord> getMapData() {
+    public Set<EmotionMapRecord> getMapData() {
         //todo: connect to parse.com and get data
         return null;
     }
