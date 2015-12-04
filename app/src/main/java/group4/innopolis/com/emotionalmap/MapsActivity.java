@@ -2,23 +2,24 @@ package group4.innopolis.com.emotionalmap;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
-import android.app.LoaderManager;
-import android.content.Context;
-import android.database.Cursor;
-import android.location.Location;
-import android.location.LocationManager;
+import android.content.ContentValues;
+import android.database.sqlite.SQLiteDatabase;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
-import group4.innopolis.com.emotionalmap.Database.EmotionMapRecord;
+
+import group4.innopolis.com.emotionalmap.Database.EmotionMapDbHelper;
+import group4.innopolis.com.emotionalmap.Database.EmotionMapContract.EmotionMapEntry;
+import group4.innopolis.com.emotionalmap.Network.ServerHelper;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -37,8 +38,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+        initializeSyncButton();
     }
 
+    private void initializeSyncButton() {
+        Button connect = (Button) findViewById(R.id.Sync);
+        connect.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //new Thread(new synchronize()).start();
+            }
+        });
+    }
 
     /**
      * Manipulates the map once available.
@@ -54,10 +65,34 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap = googleMap;
         mMap.setMyLocationEnabled(true);
 
+        new Thread(new ServerHelper("DELETE", new EmotionMapRecord(100, 100, 1, "Nikitos"))).start();
+
         setMyLocation();
         displayMapRecords();
         addMeToTheMap();
     }
+
+
+    public void addDataToDatabase() {
+        EmotionMapDbHelper mDbHelper = new EmotionMapDbHelper(this);
+        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+
+        for (int i = 1; i < 15; i++) {
+            final ContentValues values = new ContentValues();
+            values.put(EmotionMapEntry.COLUMN_NAME_USER, "User " + i);
+            values.put(EmotionMapEntry.COLUMN_NAME_EMOTION, i%3);
+            values.put(EmotionMapEntry.COLUMN_NAME_LAT, 100);
+            values.put(EmotionMapEntry.COLUMN_NAME_LNG, 100);
+
+            db.insert(EmotionMapEntry.TABLE_NAME,
+                    null,
+                    values
+            );
+        }
+    }
+
+
+
 
     private void setMyLocation() {
         //Location location = mMap.getMyLocation();
@@ -101,6 +136,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return recordType;
     }
 
+    /*Here we will get data from current database after synchronization*/
     public Set<EmotionMapRecord> getMapData() {
         //todo: connect to parse.com and get data
         return null;

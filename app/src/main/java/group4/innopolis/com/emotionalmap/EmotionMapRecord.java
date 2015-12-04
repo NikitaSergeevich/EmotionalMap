@@ -1,4 +1,4 @@
-package group4.innopolis.com.emotionalmap.Database;
+package group4.innopolis.com.emotionalmap;
 
 /**
  * Created by n.avrelin on 12/4/2015.
