@@ -1,4 +1,6 @@
 package group4.innopolis.com.emotionalmap.Network;
+import android.os.AsyncTask;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -20,41 +22,47 @@ import java.util.ArrayList;
 import group4.innopolis.com.emotionalmap.EmotionMapRecord;
 
 
-public class ServerHelper implements Runnable{
+public abstract class ServerHelper extends AsyncTask<Void, Void, ArrayList<EmotionMapRecord>> {
 
-    private String[] jsonprojectfields = {"user", "emotion", "x", "y", "objectId"};
+    private String[] jsonprojectfields = {"UserName", "Type", "Lat", "Lng", "objectId"};
     String X_Parse_REST_API_Key = "l3q12AcFfsSGzgZXdEiqsUOLBe5LYTpgvhVCS3aT";
     String X_Parse_Application_Id = "SrHthPGmNtr3Jukwsm3stqAc9CMqAyW5Z7vwXljd";
     String request = "https://api.parse.com/1/classes/Map";
 
-    String request_type;
+    String request_method;
     EmotionMapRecord request_param;
 
-    public ServerHelper(String type, EmotionMapRecord param)
+    public ServerHelper(String method, EmotionMapRecord param)
     {
-        request_type = type;
+        request_method = method;
         request_param = param;
     }
 
-    public void run() {
+    @Override
+    protected ArrayList<EmotionMapRecord> doInBackground(Void... params) {
         try {
-            switch(request_type)
+            switch(request_method)
             {
-                case "DELETE":
-                    deleteEmotionMapRecord(request_param);
                 case "GET":
-                    getProjects();
+                    return getEmotionMapRecord();
                 case "POST":
-                    addEmotionMapRecord(new EmotionMapRecord(100, 101, 1, "Nikitos"));
+                    addEmotionMapRecord(request_param);
+                case "DELETE":
+                    deleteEmotionMapRecord(request_param.objectId);
+                case "PUT":
+                    deleteEmotionMapRecord(request_param.objectId);
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        catch (Exception e) {
-            int y = 0;
-            //runOnUiThread(toast);
-        }
+        return null;
     }
 
-    public ArrayList<EmotionMapRecord> getProjects() throws Exception {
+    @Override
+    protected abstract void onPostExecute(final ArrayList<EmotionMapRecord> result);
+
+
+    public ArrayList<EmotionMapRecord> getEmotionMapRecord() throws Exception {
         HttpURLConnection connection = request(request, "GET", null);
 
         switch (connection.getResponseCode())
@@ -62,40 +70,40 @@ public class ServerHelper implements Runnable{
             case HttpURLConnection.HTTP_OK:
                 return parseProjects(connection);
             default:
-                break;
+                return null;
         }
-        return null;
     }
 
     public boolean addEmotionMapRecord(EmotionMapRecord r) throws Exception {
         JSONObject jsonParam = new JSONObject();
-        JSONArray array = null;
         jsonParam.put("UserName", r.UserName);
         jsonParam.put("Type", r.Type);
         jsonParam.put("Lat", r.Lat);
         jsonParam.put("Lng", r.Lng);
         HttpURLConnection connection = request(request, "POST", jsonParam);
-
         final int statusCode = connection.getResponseCode();
+
         switch (statusCode)
         {
             case HttpURLConnection.HTTP_OK:
-                parseProjects(connection);
+                //parseProjects(connection);
+                return true;
             default:
-                break;
+                return false;
         }
-        return true;
     }
 
-    public boolean deleteEmotionMapRecord(EmotionMapRecord r) throws Exception {
-        JSONObject jsonParam = new JSONObject();
-        jsonParam.put("objectId", "ONJcNQkTOf");
-//        jsonParam.put("Type", r.Type);
-//        jsonParam.put("Lat", r.Lat);
-//        jsonParam.put("Lng", r.Lng);
-        HttpURLConnection connection = request(request, "DELETE", jsonParam);
+    public boolean deleteEmotionMapRecord(String objectId) throws Exception {
+        HttpURLConnection connection = request(request + "/" + objectId, "DELETE", null);
         final int statusCode = connection.getResponseCode();
-        return true;
+
+        switch (statusCode)
+        {
+            case HttpURLConnection.HTTP_OK:
+                return true;
+            default:
+                return false;
+        }
     }
 
     public HttpURLConnection request(String request, String method, JSONObject params) throws Exception
@@ -107,50 +115,28 @@ public class ServerHelper implements Runnable{
         connection.setRequestMethod(method);
         connection.setRequestProperty("X-Parse-REST-API-Key", X_Parse_REST_API_Key);
         connection.setRequestProperty("X-Parse-Application-Id", X_Parse_Application_Id);
-        if (method.equals("DELETE") | method.equals("POST") | method.equals("PUT"))
+        connection.setDoInput(true);
+
+        switch (method)
         {
-            if (!method.equals("DELETE"))
-            {
-                connection.setDoInput(true);
-            }
-            OutputStream f =  connection.getOutputStream();
-            DataOutputStream printout = new DataOutputStream(f);
-            printout.write(params.toString().getBytes());
-            printout.close();
+            case "GET":
+                connection.connect();
+                break;
+            case "POST":
+                DataOutputStream printout = new DataOutputStream(connection.getOutputStream());
+                printout.write(params.toString().getBytes());
+                printout.close();
+                break;
+            case "DELETE":
+                connection.getResponseCode();
+                break;
         }
-        connection.connect();
         return connection;
     }
 
-    private String readBuffer(HttpURLConnection connection) throws IOException {
-        BufferedReader reader =	new	BufferedReader(new InputStreamReader(connection.getInputStream()));
-        StringBuilder sb = new StringBuilder();
-        String line	= reader.readLine();
-        while (line	!=	null)	{
-            sb.append(line + "\n");
-            line = reader.readLine();
-        }
-        return sb.toString();
-    }
-
-    private JSONArray parseBuffer(HttpURLConnection connection) throws IOException {
-        JSONObject json	= null;
-        JSONArray array = null;
-        String response = readBuffer(connection);
-
-        try {
-            json = new JSONObject(response);
-            array = json.getJSONArray("results");
-            return array;
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return array;
-    }
-
     private ArrayList<EmotionMapRecord> parseProjects(HttpURLConnection connection) throws IOException {
-        JSONObject json	= null;
-        ArrayList<EmotionMapRecord> data = new ArrayList<EmotionMapRecord>();
+        JSONObject json;
+        ArrayList<EmotionMapRecord> data = new ArrayList<>();
         String response = readBuffer(connection);
 
         try {
@@ -159,7 +145,7 @@ public class ServerHelper implements Runnable{
             for (int i = 0; i < array.length(); i++)
             {
                 JSONObject obj = array.getJSONObject(i);
-                ArrayList<String> jsonparsed = new ArrayList<String>();
+                ArrayList<String> jsonparsed = new ArrayList<>();
                 for (String field : jsonprojectfields)
                 {
                     if (!obj.isNull(field))
@@ -172,11 +158,26 @@ public class ServerHelper implements Runnable{
                     }
                 }
                 if (!jsonparsed.get(2).equals(""))
-                    data.add(new EmotionMapRecord(0, 0, 0, jsonparsed.get(0)));
+                    data.add(new EmotionMapRecord(jsonparsed.get(0),
+                            Integer.parseInt(jsonparsed.get(1)),
+                            Double.parseDouble(jsonparsed.get(2)),
+                            Double.parseDouble(jsonparsed.get(3)),
+                            jsonparsed.get(4)));
             }
         } catch (JSONException e) {
             e.printStackTrace();
         }
         return data;
+    }
+
+    private String readBuffer(HttpURLConnection connection) throws IOException {
+        BufferedReader reader =	new	BufferedReader(new InputStreamReader(connection.getInputStream()));
+        StringBuilder sb = new StringBuilder();
+        String line	= reader.readLine();
+        while (line	!=	null)	{
+            sb.append(line + "\n");
+            line = reader.readLine();
+        }
+        return sb.toString();
     }
 }

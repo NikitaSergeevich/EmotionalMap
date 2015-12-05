@@ -1,19 +1,25 @@
 package group4.innopolis.com.emotionalmap.Database;
 
 import android.content.ContentProvider;
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.UriMatcher;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
+
+import java.util.ArrayList;
+
 import group4.innopolis.com.emotionalmap.Database.EmotionMapContract.EmotionMapEntry;
+import group4.innopolis.com.emotionalmap.EmotionMapRecord;
+import group4.innopolis.com.emotionalmap.Network.ServerHelper;
 
 public class EmotionMapContentProvider extends ContentProvider {
 
     private EmotionMapDbHelper dbHelper;
 
     public static final String AUTHORITY = "group4.innopolis.com.emotionalmap";
-    //public static final Uri CONTENT_URI_EMOTIONAL_MAP = Uri.parse("content://ru.innopolis.sakhankov/projects/");
+    public static final Uri CONTENT_URI_EMOTION_MAP = Uri.parse("content://group4.innopolis.com.emotionalmap/emotionmap/");
 
     private static final UriMatcher uriMatcher;
 
@@ -34,7 +40,6 @@ public class EmotionMapContentProvider extends ContentProvider {
         return true;
     }
 
-
     @Override
     public String getType(Uri uri) {
         switch (uriMatcher.match(uri)) {
@@ -42,6 +47,11 @@ public class EmotionMapContentProvider extends ContentProvider {
                 return EmotionMapContract.EmotionMapEntry.TABLE_NAME;
         }
         return "";
+    }
+
+    public static Uri getUri(int id) {
+        Uri uri = ContentUris.withAppendedId(CONTENT_URI_EMOTION_MAP, id);
+        return uri;
     }
 
 
@@ -59,15 +69,26 @@ public class EmotionMapContentProvider extends ContentProvider {
         Cursor cursor = dbHelper.getReadableDatabase().rawQuery("SELECT serviceid FROM  projects where _id = " + lastPathSegment, null);
     }
 
-
-
-
-
     @Override
     public Uri insert(Uri uri, ContentValues values) {
-        final long id = dbHelper.getWritableDatabase().insert(getType(uri), null, values);
-        getContext().getContentResolver().notifyChange(uri, null);
-        return uri;
+        long insert = dbHelper.getWritableDatabase().insert(EmotionMapEntry.TABLE_NAME, null, values);
+        Uri _uri = ContentUris.withAppendedId(uri, insert);
+        //addToProjects(values, insert);
+
+        String UserName = (String)values.get(EmotionMapEntry.COLUMN_NAME_USER);
+        double lng = (double)values.get(EmotionMapEntry.COLUMN_NAME_LNG);
+        double lat = (double)values.get(EmotionMapEntry.COLUMN_NAME_LAT);
+        int type = (int)values.get(EmotionMapEntry.COLUMN_NAME_EMOTION);
+
+        new ServerHelper("POST", new EmotionMapRecord(UserName, type, lng, lat, null)) {
+            @Override
+            protected void onPostExecute(final ArrayList<EmotionMapRecord> list) {
+
+            }
+        }.execute();
+
+        getContext().getContentResolver().notifyChange(_uri, null);
+        return _uri;
     }
 
     @Override

@@ -9,11 +9,13 @@ public class EmotionMapRecord {
     public double Lng;
     public int Type;
     public String UserName;
+    public String objectId;
 
-    public EmotionMapRecord(double lat, double lng, int type, String userName) {
+    public EmotionMapRecord(String userName, int type, double lat, double lng, String Id) {
         Lat = lat;
         Lng = lng;
         Type = type;
         UserName = userName;
+        objectId = Id;
     }
 }

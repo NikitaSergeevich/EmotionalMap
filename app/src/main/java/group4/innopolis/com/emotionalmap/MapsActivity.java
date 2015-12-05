@@ -3,11 +3,16 @@ package group4.innopolis.com.emotionalmap;
 import android.accounts.Account;
 import android.accounts.AccountManager;
 import android.content.ContentValues;
+import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -17,10 +22,12 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import group4.innopolis.com.emotionalmap.Database.DbConverter;
 import group4.innopolis.com.emotionalmap.Database.EmotionMapDbHelper;
 import group4.innopolis.com.emotionalmap.Database.EmotionMapContract.EmotionMapEntry;
-import group4.innopolis.com.emotionalmap.Network.ServerHelper;
+import group4.innopolis.com.emotionalmap.Database.EmotionMapContentProvider;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -29,6 +36,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private GoogleMap mMap;
     private LatLng myLocation;
+    private LocationManager locationManager;
+
+    private LocationListener mLocationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(final Location location) {
+            //your code here
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +69,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         initializeSyncButton();
+        initializePostButton();
     }
 
     private void initializeSyncButton() {
@@ -46,7 +77,34 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         connect.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                try {
+
+                } catch (SecurityException e) {
+
+                }
+
+            }
+        });
+    }
+
+    private void initializePostButton() {
+        Button connect = (Button) findViewById(R.id.Post);
+        connect.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
                 //new Thread(new synchronize()).start();
+                try {
+                    Location currentLocation = locationManager.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER);
+                    double longtitude = currentLocation.getLongitude();
+                    double latitude = currentLocation.getLatitude();
+                    addMarkerToTheMap(new LatLng(latitude, longtitude), "I'm here", 1);
+                    EmotionMapRecord p = new EmotionMapRecord("Nikitos", 1, latitude, longtitude, null);
+                    getContentResolver().insert(EmotionMapContentProvider.CONTENT_URI_EMOTION_MAP, DbConverter.convertToContentValues(p));
+
+                } catch (SecurityException e) {
+
+                }
+
             }
         });
     }
@@ -63,13 +121,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        //Location locationGPS = mMap.getMyLocation();
+
+        try{
+            locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, mLocationListener);
+        }
+        catch (SecurityException e)
+        {
+
+        }
+
         mMap.setMyLocationEnabled(true);
-
-        new Thread(new ServerHelper("DELETE", new EmotionMapRecord(100, 100, 1, "Nikitos"))).start();
-
-        setMyLocation();
-        displayMapRecords();
-        addMeToTheMap();
+        //setMyLocation();
+        //displayMapRecords();
+        //addMeToTheMap();
     }
 
 
@@ -92,13 +158,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
 
-
-
-    private void setMyLocation() {
-        //Location location = mMap.getMyLocation();
-        myLocation = new LatLng(55.753, 48.744);
-    }
-
     public void displayMapRecords() { //todo: add button to execute this method
         Set<EmotionMapRecord> records = getMapData();
 
@@ -114,19 +173,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    private void addMeToTheMap() {
+    private void addMarkerToTheMap(LatLng myLocation, String Title, int Type) {
 
         mMap.addMarker(new MarkerOptions()
                 .position(myLocation)
-                .title("Me")
+                .title(Title)
                 .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_media_play))); //todo: replace for "Me" icon
-        moveToMyLocation();
+        //moveToMyLocation();
     }
 
 
     public void moveToMyLocation() //todo: add button to execute this method
     {
-        setMyLocation();
+        //setMyLocation();
         mMap.moveCamera(CameraUpdateFactory.newLatLng(myLocation));
     }
 
