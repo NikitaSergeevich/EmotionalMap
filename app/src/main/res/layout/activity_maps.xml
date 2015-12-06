@@ -17,6 +17,14 @@
         android:layout_marginTop="30dp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
+    <EditText
+        android:id="@+id/text"
+        android:textSize="25sp"
+        android:layout_marginTop="300dp"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:hint="Describe your emotions:"
+        android:inputType="textEmailAddress" />
 
 
 </fragment>

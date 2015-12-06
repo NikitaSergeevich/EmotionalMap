@@ -24,7 +24,7 @@ import group4.innopolis.com.emotionalmap.EmotionMapRecord;
 
 public abstract class ServerHelper extends AsyncTask<Void, Void, ArrayList<EmotionMapRecord>> {
 
-    private String[] jsonprojectfields = {"UserName", "Type", "Lat", "Lng", "objectId"};
+    private String[] jsonprojectfields = {"UserName", "Type", "Lat", "Lng", "Text", "objectId"};
     String X_Parse_REST_API_Key = "l3q12AcFfsSGzgZXdEiqsUOLBe5LYTpgvhVCS3aT";
     String X_Parse_Application_Id = "SrHthPGmNtr3Jukwsm3stqAc9CMqAyW5Z7vwXljd";
     String request = "https://api.parse.com/1/classes/Map";
@@ -162,6 +162,7 @@ public abstract class ServerHelper extends AsyncTask<Void, Void, ArrayList<Emoti
                             Integer.parseInt(jsonparsed.get(1)),
                             Double.parseDouble(jsonparsed.get(2)),
                             Double.parseDouble(jsonparsed.get(3)),
+                            jsonparsed.get(3),
                             jsonparsed.get(4)));
             }
         } catch (JSONException e) {

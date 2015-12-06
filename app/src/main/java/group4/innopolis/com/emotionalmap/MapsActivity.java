@@ -2,30 +2,35 @@ package group4.innopolis.com.emotionalmap;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
-import android.content.ContentValues;
 import android.content.Context;
-import android.database.sqlite.SQLiteDatabase;
+import android.database.Cursor;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.view.ContextMenu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 
-
-import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import group4.innopolis.com.emotionalmap.Database.DbConverter;
-import group4.innopolis.com.emotionalmap.Database.EmotionMapDbHelper;
-import group4.innopolis.com.emotionalmap.Database.EmotionMapContract.EmotionMapEntry;
 import group4.innopolis.com.emotionalmap.Database.EmotionMapContentProvider;
+
+import group4.innopolis.com.emotionalmap.Database.EmotionMapContract.EmotionMapEntry;
+import group4.innopolis.com.emotionalmap.Database.EmotionMapDbHelper;
+import group4.innopolis.com.emotionalmap.Network.ServerHelper;
+import group4.innopolis.com.emotionalmap.R.*;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -35,8 +40,9 @@ import java.util.Set;
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMapLoadedCallback{
 
     private GoogleMap mMap;
-    private LatLng myLocation;
+   // private LatLng myLocation;
     private LocationManager locationManager;
+    private String username;
 
     private LocationListener mLocationListener = new LocationListener() {
         @Override
@@ -64,12 +70,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         initializeSyncButton();
         initializePostButton();
+        username = getUsername();
     }
 
     private void initializeSyncButton() {
@@ -77,51 +85,106 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         connect.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                try {
-
-                } catch (SecurityException e) {
-
-                }
 
             }
         });
     }
 
     private void initializePostButton() {
-        Button connect = (Button) findViewById(R.id.Post);
-        connect.setOnClickListener(new View.OnClickListener() {
+        Button post_btn = (Button) findViewById(R.id.Post);
+
+        post_btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                //new Thread(new synchronize()).start();
-                try {
-                    Location currentLocation = locationManager.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER);
-                    double longtitude = currentLocation.getLongitude();
-                    double latitude = currentLocation.getLatitude();
-                    addMarkerToTheMap(new LatLng(latitude, longtitude), "I'm here", 1);
-                    EmotionMapRecord p = new EmotionMapRecord("Nikitos", 1, latitude, longtitude, null);
-                    getContentResolver().insert(EmotionMapContentProvider.CONTENT_URI_EMOTION_MAP, DbConverter.convertToContentValues(p));
-
-                } catch (SecurityException e) {
-
-                }
-
+                registerForContextMenu(v);
+                openContextMenu(v);
+                unregisterForContextMenu(v);
             }
         });
     }
 
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+        super.onCreateContextMenu(menu, v, menuInfo);
+        if (v.getId()== id.Post){
+            MenuInflater inflater = getMenuInflater();
+            inflater.inflate(R.menu.mood_menu, menu);
+        }
+    }
+
+    @Override
+    public boolean onContextItemSelected(MenuItem item){
+        int type;
+        Location currentLocation;
+        switch (item.getItemId()){
+            case id.good:
+                type = 1;
+                break;
+            case id.neutral:
+                type = 2;
+                break;
+            case id.bad:
+                type = 3;
+                break;
+            default:
+                return super.onContextItemSelected(item);
+        }
+
+        try {
+            currentLocation = locationManager.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER);
+            double longitude = currentLocation.getLongitude();
+            double latitude = currentLocation.getLatitude();
+            String text = ((EditText) findViewById(id.text)).getText().toString().trim();
+            addMarkerToTheMap(username, type, new LatLng(latitude, longitude), text);
+            EmotionMapRecord r = new EmotionMapRecord(username, type, latitude, longitude, text, null);
+            getContentResolver().insert(EmotionMapContentProvider.CONTENT_URI_EMOTION_MAP, DbConverter.convertToContentValues(r));
+
+
+
+            /*Server Update Realized in this part, not in EmotionMapContentProvider, because
+            * we need to use insert method which converts object into another object which represent
+            * sql table fields. We use different objects in order to reduce memory which one class with all fields
+              will consume in memory*/
+            new ServerHelper("POST", r) {
+                @Override
+                protected void onPostExecute(final ArrayList<EmotionMapRecord> list) {
+
+                }
+            }.execute();
+        }
+        catch (SecurityException e) {
+
+        }
+        return super.onContextItemSelected(item);
+    }
+
+    private void addMarkerToTheMap(String Username, int Type, LatLng myLocation, String Text) {
+        switch (Type)
+        {
+            case 1:
+                Type = mipmap.goodmood;
+                break;
+            case 2:
+                Type = mipmap.nomood;
+                break;
+            case 3:
+                Type = mipmap.badmood;
+                break;
+        }
+
+        Marker marker = mMap.addMarker(new MarkerOptions()
+                .position(myLocation)
+                .title(Username)
+                .snippet(Text)
+                .icon(BitmapDescriptorFactory.fromResource(Type))); //todo: replace for "Me" icon
+        marker.showInfoWindow();
+        //moveToMyLocation();
+    }
+
+
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        //Location locationGPS = mMap.getMyLocation();
 
         try{
             locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
@@ -133,60 +196,41 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         mMap.setMyLocationEnabled(true);
-        //setMyLocation();
-        //displayMapRecords();
-        //addMeToTheMap();
+        displayMapRecords();
     }
 
+    public void displayMapRecords() {
+        String[] projectionColumns =
+                {
+                        EmotionMapEntry.COLUMN_NAME_USER,
+                        EmotionMapEntry.COLUMN_NAME_LAT,
+                        EmotionMapEntry.COLUMN_NAME_LNG,
+                        EmotionMapEntry.COLUMN_NAME_EMOTION,
+                        EmotionMapEntry.COLUMN_NAME_TEXT
+                };
+        Cursor cursor =
+                getContentResolver().query(EmotionMapContentProvider.CONTENT_URI_EMOTION_MAP,
+                        projectionColumns,
+                        null,
+                        null,
+                        null);
 
-    public void addDataToDatabase() {
-        EmotionMapDbHelper mDbHelper = new EmotionMapDbHelper(this);
-        SQLiteDatabase db = mDbHelper.getWritableDatabase();
-
-        for (int i = 1; i < 15; i++) {
-            final ContentValues values = new ContentValues();
-            values.put(EmotionMapEntry.COLUMN_NAME_USER, "User " + i);
-            values.put(EmotionMapEntry.COLUMN_NAME_EMOTION, i%3);
-            values.put(EmotionMapEntry.COLUMN_NAME_LAT, 100);
-            values.put(EmotionMapEntry.COLUMN_NAME_LNG, 100);
-
-            db.insert(EmotionMapEntry.TABLE_NAME,
-                    null,
-                    values
-            );
+        if (cursor.moveToFirst()) {
+            do {
+                String user = cursor.getString(cursor.getColumnIndex(EmotionMapEntry.COLUMN_NAME_USER));
+                double lat = cursor.getDouble(cursor.getColumnIndex(EmotionMapEntry.COLUMN_NAME_LAT));
+                double lng = cursor.getDouble(cursor.getColumnIndex(EmotionMapEntry.COLUMN_NAME_LNG));
+                int emotion = cursor.getInt(cursor.getColumnIndex(EmotionMapEntry.COLUMN_NAME_EMOTION));
+                String text = cursor.getString(cursor.getColumnIndex(EmotionMapEntry.COLUMN_NAME_TEXT));
+                addMarkerToTheMap("user", emotion,  new LatLng(lat, lng), text);
+            } while (cursor.moveToNext());
         }
     }
-
-
-    public void displayMapRecords() { //todo: add button to execute this method
-        Set<EmotionMapRecord> records = getMapData();
-
-        if (records == null)
-            return;
-
-        for (EmotionMapRecord record : records) {
-            LatLng latLng = new LatLng(record.Lat, record.Lng);
-            mMap.addMarker(new MarkerOptions()
-                    .position(latLng)
-                    .title(record.UserName)
-                    .icon(BitmapDescriptorFactory.fromResource(getMarkerImage(record.Type))));
-        }
-    }
-
-    private void addMarkerToTheMap(LatLng myLocation, String Title, int Type) {
-
-        mMap.addMarker(new MarkerOptions()
-                .position(myLocation)
-                .title(Title)
-                .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_media_play))); //todo: replace for "Me" icon
-        //moveToMyLocation();
-    }
-
 
     public void moveToMyLocation() //todo: add button to execute this method
     {
         //setMyLocation();
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(myLocation));
+        //mMap.moveCamera(CameraUpdateFactory.newLatLng(myLocation));
     }
 
 
@@ -207,10 +251,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         //todo: 1. connect to parse.com and post (put) data (must have)
         //todo: 2. push notification to other clients (low priority)
 
-        mMap.addMarker(new MarkerOptions()
+        /*mMap.addMarker(new MarkerOptions()
                 .position(myLocation)
                 .title(getUsername())
-                .icon(BitmapDescriptorFactory.fromResource(getMarkerImage(type))));
+                .icon(BitmapDescriptorFactory.fromResource(getMarkerImage(type))));*/
     }
 
     private String getUsername() {

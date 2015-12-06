@@ -17,7 +17,9 @@ public class EmotionMapDbHelper extends SQLiteOpenHelper {
                     EmotionMapEntry.COLUMN_NAME_USER + " TEXT," +
                     EmotionMapEntry.COLUMN_NAME_EMOTION + " INTEGER," +
                     EmotionMapEntry.COLUMN_NAME_LAT + " INTEGER," +
-                    EmotionMapEntry.COLUMN_NAME_LNG + " INTEGER" +
+                    EmotionMapEntry.COLUMN_NAME_LNG + " INTEGER," +
+                    EmotionMapEntry.COLUMN_NAME_TEXT + " TEXT," +
+                    EmotionMapEntry.COLUMN_NAME_OBJECT_ID + " TEXT" +
                     " )";
 
     private static final String SQL_DELETE_ENTRIES =
