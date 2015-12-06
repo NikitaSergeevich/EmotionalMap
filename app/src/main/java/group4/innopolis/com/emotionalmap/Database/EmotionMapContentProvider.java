@@ -33,8 +33,8 @@ public class EmotionMapContentProvider extends ContentProvider {
     @Override
     public boolean onCreate() {
         dbHelper = new EmotionMapDbHelper(getContext());
-        //SQLiteDatabase db = dbHelper.getReadableDatabase();
-        //dbHelper.onClean(db);
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        dbHelper.onClean(db);
         return true;
     }
 
@@ -62,7 +62,7 @@ public class EmotionMapContentProvider extends ContentProvider {
 
     @Override
     public Uri insert(Uri uri, ContentValues values) {
-        long insert = dbHelper.getWritableDatabase().insert(EmotionMapEntry.TABLE_NAME, null, values);
+        dbHelper.getWritableDatabase().insert(EmotionMapEntry.TABLE_NAME, null, values);
         getContext().getContentResolver().notifyChange(uri, null);
         return uri;
     }

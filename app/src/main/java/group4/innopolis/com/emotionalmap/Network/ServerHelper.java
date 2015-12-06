@@ -80,13 +80,13 @@ public abstract class ServerHelper extends AsyncTask<Void, Void, ArrayList<Emoti
         jsonParam.put("Type", r.Type);
         jsonParam.put("Lat", r.Lat);
         jsonParam.put("Lng", r.Lng);
+        jsonParam.put("Text", r.Text);
         HttpURLConnection connection = request(request, "POST", jsonParam);
         final int statusCode = connection.getResponseCode();
 
         switch (statusCode)
         {
             case HttpURLConnection.HTTP_OK:
-                //parseProjects(connection);
                 return true;
             default:
                 return false;
@@ -162,8 +162,8 @@ public abstract class ServerHelper extends AsyncTask<Void, Void, ArrayList<Emoti
                             Integer.parseInt(jsonparsed.get(1)),
                             Double.parseDouble(jsonparsed.get(2)),
                             Double.parseDouble(jsonparsed.get(3)),
-                            jsonparsed.get(3),
-                            jsonparsed.get(4)));
+                            jsonparsed.get(4),
+                            jsonparsed.get(5)));
             }
         } catch (JSONException e) {
             e.printStackTrace();

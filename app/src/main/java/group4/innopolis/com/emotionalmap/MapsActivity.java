@@ -78,6 +78,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         initializeSyncButton();
         initializePostButton();
         username = getUsername();
+
+        //cleanServer();
+    }
+
+    public void cleanServer()
+    {
+        new ServerHelper("GET", null) {
+            @Override
+            protected void onPostExecute(final ArrayList<EmotionMapRecord> list){
+
+                for (EmotionMapRecord r: list)
+                {
+                    new ServerHelper("DELETE", r){
+                        @Override
+                        protected void onPostExecute(final ArrayList<EmotionMapRecord> list){
+                            //donothing
+                        }
+                    }.execute();
+                }
+
+            }
+        }.execute();
     }
 
     private void initializeSyncButton() {
@@ -85,7 +107,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         connect.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
+                synchronize();
             }
         });
     }
@@ -198,6 +220,42 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.setMyLocationEnabled(true);
         displayMapRecords();
     }
+
+    public void synchronize() {
+
+        new ServerHelper("GET", null) {
+            @Override
+            protected void onPostExecute(final ArrayList<EmotionMapRecord> list) {
+                boolean insert = true;
+                String[] projectionColumns =
+                        {
+                                EmotionMapEntry.COLUMN_NAME_OBJECT_ID
+                        };
+                Cursor cursor =
+                        getContentResolver().query(EmotionMapContentProvider.CONTENT_URI_EMOTION_MAP,
+                                projectionColumns,
+                                null,
+                                null,
+                                null);
+
+                    for (EmotionMapRecord r : list) {
+                        if (cursor.moveToFirst()) {
+                            do {
+                                if (r.objectId == cursor.getString(0))
+                                    insert = false;
+                            } while (cursor.moveToNext());
+                        }
+
+                        if (insert) {
+                            getContentResolver().insert(EmotionMapContentProvider.CONTENT_URI_EMOTION_MAP, DbConverter.convertToContentValues(r));
+                            addMarkerToTheMap(r.UserName, r.Type, new LatLng(r.Lat, r.Lng), r.Text);
+                            insert = true;
+                        }
+                    }
+                }
+            }.execute();
+    }
+
 
     public void displayMapRecords() {
         String[] projectionColumns =
