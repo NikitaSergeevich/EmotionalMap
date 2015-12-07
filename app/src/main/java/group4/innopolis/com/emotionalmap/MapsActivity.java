@@ -2,13 +2,20 @@ package group4.innopolis.com.emotionalmap;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
+import android.app.AlertDialog;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.database.Cursor;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v4.app.NotificationCompat;
 import android.view.ContextMenu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -28,21 +35,59 @@ import group4.innopolis.com.emotionalmap.Database.DbConverter;
 import group4.innopolis.com.emotionalmap.Database.EmotionMapContentProvider;
 
 import group4.innopolis.com.emotionalmap.Database.EmotionMapContract.EmotionMapEntry;
-import group4.innopolis.com.emotionalmap.Database.EmotionMapDbHelper;
 import group4.innopolis.com.emotionalmap.Network.ServerHelper;
 import group4.innopolis.com.emotionalmap.R.*;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMapLoadedCallback{
 
     private GoogleMap mMap;
-   // private LatLng myLocation;
+    // private LatLng myLocation;
     private LocationManager locationManager;
+    private boolean lmenabled = true;
+    private NotificationManager notificationManager;
+    private Notification notification;
     private String username;
+    private int ID = 74392;
+
+    private Runnable notifications = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                while (true) {
+                    notificationManager.notify(ID, notification);
+                    Thread.sleep(10000);
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    };
+
+    public void initializeNotification()
+    {
+        Context context = getApplicationContext();
+        Intent notificationIntent = new Intent(context, MapsActivity.class);
+        PendingIntent contentIntent = PendingIntent.getActivity(context,
+                0, notificationIntent,
+                PendingIntent.FLAG_CANCEL_CURRENT);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
+                .setContentIntent(contentIntent)
+                .setContentTitle("Emotion Map App")
+                .setContentText("Hey! How are you doing? Post your mood!")
+                .setAutoCancel(true)
+                .setSmallIcon(mipmap.mobile);
+
+        notification = builder.build();
+        long[] vibrate = new long[] { 1000, 1000, 1000, 1000, 1000 };
+        notification.vibrate = vibrate;
+        notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        new Thread(notifications).start();
+    }
 
     private LocationListener mLocationListener = new LocationListener() {
         @Override
@@ -77,8 +122,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
         initializeSyncButton();
         initializePostButton();
+        initializeNotification();
         username = getUsername();
-
         //cleanServer();
     }
 
@@ -118,9 +163,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         post_btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                registerForContextMenu(v);
-                openContextMenu(v);
-                unregisterForContextMenu(v);
+
+                if (locationManager == null || !locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                    lmenabled = false;
+                    buildAlertMessageNoGps();
+                }
+
+                if (lmenabled == true) {
+                    registerForContextMenu(v);
+                    openContextMenu(v);
+                    unregisterForContextMenu(v);
+                }
             }
         });
     }
@@ -200,26 +253,46 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .snippet(Text)
                 .icon(BitmapDescriptorFactory.fromResource(Type))); //todo: replace for "Me" icon
         marker.showInfoWindow();
-        //moveToMyLocation();
     }
 
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-
-        try{
-            locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, mLocationListener);
-        }
-        catch (SecurityException e)
-        {
-
+        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        if ( locationManager == null || !locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER ) ) {
+            lmenabled = false;
+            buildAlertMessageNoGps();
         }
 
         mMap.setMyLocationEnabled(true);
         displayMapRecords();
     }
+
+    private void buildAlertMessageNoGps() {
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Your GPS seems to be disabled, do you want to enable it?")
+                .setCancelable(false)
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    public void onClick(final DialogInterface dialog, final int id) {
+                        startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                        lmenabled = true;
+                        try {
+                            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, mLocationListener);
+                        } catch (SecurityException e) {
+
+                        }
+                    }
+                })
+                .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                    public void onClick(final DialogInterface dialog, final int id) {
+                        dialog.cancel();
+                    }
+                });
+        final AlertDialog alert = builder.create();
+        alert.show();
+    }
+
 
     public void synchronize() {
 
@@ -280,39 +353,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 double lng = cursor.getDouble(cursor.getColumnIndex(EmotionMapEntry.COLUMN_NAME_LNG));
                 int emotion = cursor.getInt(cursor.getColumnIndex(EmotionMapEntry.COLUMN_NAME_EMOTION));
                 String text = cursor.getString(cursor.getColumnIndex(EmotionMapEntry.COLUMN_NAME_TEXT));
-                addMarkerToTheMap("user", emotion,  new LatLng(lat, lng), text);
+                addMarkerToTheMap(user, emotion,  new LatLng(lat, lng), text);
             } while (cursor.moveToNext());
         }
-    }
-
-    public void moveToMyLocation() //todo: add button to execute this method
-    {
-        //setMyLocation();
-        //mMap.moveCamera(CameraUpdateFactory.newLatLng(myLocation));
-    }
-
-
-    public int getMarkerImage(int recordType) {
-        //todo: reconsider
-        return recordType;
-    }
-
-    /*Here we will get data from current database after synchronization*/
-    public Set<EmotionMapRecord> getMapData() {
-        //todo: connect to parse.com and get data
-        return null;
-    }
-
-    public void updateMyRecord(int type) {
-        //MapRecord myRecord = new MapRecord(myLocation.latitude, myLocation.longitude, type, getUsername());
-
-        //todo: 1. connect to parse.com and post (put) data (must have)
-        //todo: 2. push notification to other clients (low priority)
-
-        /*mMap.addMarker(new MarkerOptions()
-                .position(myLocation)
-                .title(getUsername())
-                .icon(BitmapDescriptorFactory.fromResource(getMarkerImage(type))));*/
     }
 
     private String getUsername() {

@@ -1,8 +1,5 @@
 package group4.innopolis.com.emotionalmap;
 
-/**
- * Created by n.avrelin on 12/4/2015.
- */
 public class EmotionMapRecord {
 
     public double Lat;

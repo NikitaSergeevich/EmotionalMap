@@ -1,18 +1,14 @@
 package group4.innopolis.com.emotionalmap.Database;
 
 import android.content.ContentProvider;
-import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.UriMatcher;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 
-import java.util.ArrayList;
-
 import group4.innopolis.com.emotionalmap.Database.EmotionMapContract.EmotionMapEntry;
-import group4.innopolis.com.emotionalmap.EmotionMapRecord;
-import group4.innopolis.com.emotionalmap.Network.ServerHelper;
+
 
 public class EmotionMapContentProvider extends ContentProvider {
 

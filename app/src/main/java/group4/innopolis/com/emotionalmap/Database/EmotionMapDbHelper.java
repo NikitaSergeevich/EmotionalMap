@@ -3,7 +3,6 @@ package group4.innopolis.com.emotionalmap.Database;
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.net.Uri;
 
 import group4.innopolis.com.emotionalmap.Database.EmotionMapContract.EmotionMapEntry;
 
